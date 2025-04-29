@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_NAME=fraud_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - VECTOR_DIM=32
+    volumes:
+      - .:/app
+    restart: always
+
+  db:
+    image: ankane/pgvector
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=fraud_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/create_fraud_embeddings_table.sql:/docker-entrypoint-initdb.d/create_fraud_embeddings_table.sql
+
+volumes:
+  postgres_data:
