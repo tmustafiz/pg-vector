@@ -1,0 +1,105 @@
+{
+    "name": "merchant_applications",
+    "fields": [
+        {
+            "name": "owner_ssn",
+            "type": "string",
+            "validation": {
+                "pattern": "^\\d{3}-\\d{2}-\\d{4}$"
+            }
+        },
+        {
+            "name": "business_fed_tax_id",
+            "type": "string",
+            "validation": {
+                "pattern": "^\\d{2}-\\d{7}$"
+            }
+        },
+        {
+            "name": "owner_drivers_license",
+            "type": "string",
+            "validation": {
+                "pattern": "^DL\\d{8}$"
+            }
+        },
+        {
+            "name": "business_phone_number",
+            "type": "string",
+            "validation": {
+                "pattern": "^\\d{3}-\\d{3}-\\d{4}$"
+            }
+        },
+        {
+            "name": "owner_phone_number",
+            "type": "string",
+            "validation": {
+                "pattern": "^\\d{3}-\\d{3}-\\d{4}$"
+            }
+        },
+        {
+            "name": "email",
+            "type": "string",
+            "validation": {
+                "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+            }
+        },
+        {
+            "name": "address_line1",
+            "type": "string"
+        },
+        {
+            "name": "city",
+            "type": "string"
+        },
+        {
+            "name": "state",
+            "type": "string",
+            "validation": {
+                "pattern": "^[A-Z]{2}$"
+            }
+        },
+        {
+            "name": "zip_code",
+            "type": "string",
+            "validation": {
+                "pattern": "^\\d{5}$"
+            }
+        },
+        {
+            "name": "country",
+            "type": "string",
+            "validation": {
+                "pattern": "^[A-Z]{2}$"
+            }
+        },
+        {
+            "name": "website",
+            "type": "string",
+            "validation": {
+                "pattern": "^www\\.[a-zA-Z0-9.-]+\\.com$"
+            }
+        }
+    ],
+    "feature_groups": [
+        {
+            "name": "identity",
+            "fields": ["owner_ssn", "business_fed_tax_id", "owner_drivers_license"]
+        },
+        {
+            "name": "contact",
+            "fields": ["business_phone_number", "owner_phone_number", "email"]
+        },
+        {
+            "name": "location",
+            "fields": ["address_line1", "city", "state", "zip_code", "country"]
+        },
+        {
+            "name": "business",
+            "fields": ["website"]
+        }
+    ],
+    "similarity_thresholds": {
+        "decline": 0.8,
+        "review": 0.6
+    }
+} 

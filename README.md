@@ -22,10 +22,11 @@ The system is divided into three main components:
 1. **fraud_detection_common** - Shared utilities and models
    - Database operations with pgvector
    - Custom embedding generation using feature engineering and PCA
+   - Dynamic model generation based on configuration
    - Common data models and types
 
 2. **fraud_detection_training** - Training and embedding generation
-   - Processes training data
+   - Processes training data from JSON or CSV files
    - Generates custom embeddings
    - Stores embeddings in the database
 
@@ -95,12 +96,48 @@ graph TD
 
 ## Usage
 
-1. **Training the Model**
+1. **Configuration**
+   The system uses a configuration-driven approach. Create a `config/model_config.json` file:
+   ```json
+   {
+     "name": "merchant_fraud",
+     "fields": [
+       {
+         "name": "owner_ssn",
+         "type": "string",
+         "validation": {
+           "pattern": "^\\d{3}-\\d{2}-\\d{4}$"
+         }
+       },
+       {
+         "name": "business_fed_tax_id",
+         "type": "string",
+         "validation": {
+           "pattern": "^\\d{2}-\\d{7}$"
+         }
+       }
+     ],
+     "feature_groups": [
+       {
+         "name": "identity",
+         "fields": ["owner_ssn", "business_fed_tax_id"]
+       }
+     ],
+     "similarity_thresholds": {
+       "decline": 0.8,
+       "review": 0.6
+     }
+   }
+   ```
+
+2. **Training the Model**
    ```bash
    cd fraud_detection_training
    python -m src.train
    ```
-   The training script expects training data in `data/training_data.json` with the following format:
+   The training script supports both JSON and CSV formats:
+
+   **JSON Format:**
    ```json
    [
      {
@@ -123,13 +160,19 @@ graph TD
    ]
    ```
 
-2. **Running the API**
+   **CSV Format:**
+   ```csv
+   owner_ssn,business_fed_tax_id,owner_drivers_license,business_phone_number,owner_phone_number,email,address_line1,city,state,zip_code,country,website,fraud_reason
+   123-45-6789,12-3456789,DL12345678,555-123-4567,555-987-6543,test@example.com,123 Main St,New York,NY,10001,US,www.example.com,Reason for fraud
+   ```
+
+3. **Running the API**
    ```bash
    cd fraud_detection_api
    uvicorn src.api:app --reload
    ```
 
-3. **Evaluating Applications**
+4. **Evaluating Applications**
    ```bash
    curl -X POST http://localhost:8000/evaluate \
      -H "Content-Type: application/json" \
@@ -151,7 +194,13 @@ graph TD
 
 ## How It Works
 
-1. **Feature Engineering**
+1. **Dynamic Model Generation**
+   - Models are generated based on configuration
+   - Supports custom field types and validation rules
+   - Feature groups for organized feature engineering
+   - Configurable similarity thresholds
+
+2. **Feature Engineering**
    - Identity Features:
      - Owner SSN (hashed)
      - Business Tax ID (hashed)
@@ -169,20 +218,20 @@ graph TD
    - Business Features:
      - Website (hashed)
 
-2. **Embedding Generation**
+3. **Embedding Generation**
    - Features are normalized using StandardScaler
    - PCA reduces dimensions to 384 features
    - Embeddings are stored as float32 vectors
 
-3. **Similarity Search**
+4. **Similarity Search**
    - Uses pgvector for efficient cosine similarity search
    - Thresholds for decision making:
      - > 0.8: Decline
      - > 0.6: Review
      - Otherwise: Approve
 
-4. **Field Matching**
-   - Exact matching for critical fields (email, address)
+5. **Field Matching**
+   - Dynamic field comparison based on configuration
    - Case-insensitive comparison
    - Returns detailed match information
 
