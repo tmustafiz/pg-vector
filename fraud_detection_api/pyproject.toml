@@ -7,8 +7,16 @@ dependencies = [
     "fraud_detection_common>=0.1.0",
     "fastapi>=0.68.0",
     "uvicorn>=0.15.0",
-    "scikit-learn>=1.0.0",  # For feature engineering and PCA
+    "scikit-learn>=1.0.0",
+    "pandas>=1.3.0",
+    "numpy>=1.21.0",
+    "psycopg2-binary>=2.9.0",
+    "sqlalchemy>=1.4.0",
+    "python-dotenv>=1.0.0"
 ]
+
+[project.scripts]
+start-api = "fraud_detection_api.main:main"
 
 [build-system]
 requires = ["hatchling"]

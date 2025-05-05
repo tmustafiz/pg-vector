@@ -1,20 +1,24 @@
-[project]
-name = "fraud_detection_training"
-version = "0.1.0"
-description = "Training module for fraud detection system"
-requires-python = ">=3.9"
-dependencies = [
-    "fraud_detection_common>=0.1.0",
-    "tqdm>=4.65.0",
-    "scikit-learn>=1.0.0",  # For feature engineering and PCA
-]
-
-[project.scripts]
-generate-test-data = "fraud_detection_training.generate_test_data:main"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project]
+name = "fraud_detection_training"
+version = "0.1.0"
+description = "Training module for fraud detection"
+requires-python = ">=3.9"
+dependencies = [
+    "pandas",
+    "numpy",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "fraud_detection_common",
+    "tqdm"
+]
+
+[project.scripts]
+train = "fraud_detection_training.train:main"
+generate-test-data = "fraud_detection_training.generate_test_data:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fraud_detection_training"]

@@ -21,7 +21,8 @@ build/
 
 # Environment variables
 .env
-.env.local
+.env.*
+!.env.example
 
 # Logs
 *.log
@@ -39,3 +40,4 @@ build/
 Thumbs.db 
 
 fraud_detection_training/data/
+

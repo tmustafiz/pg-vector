@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build and distribution
+dist/
+build/
+*.egg-info/
+
+# Test
+tests/
+*.log
+.coverage
+htmlcov/
+
+# Data
+data/
+*.csv
+*.json
+!config/model_config.json
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore 

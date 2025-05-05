@@ -1,0 +1,81 @@
+{
+    "connection": {
+        "url": "postgresql://postgres:postgres@172.19.0.2:5432/fraud_detection",
+        "schema": "public",
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_recycle": 1800
+    },
+    "tables": {
+        "merchant_fraud": {
+            "schema": "public",
+            "fields": [
+                {
+                    "name": "owner_ssn",
+                    "type": "string"
+                },
+                {
+                    "name": "business_fed_tax_id",
+                    "type": "string"
+                },
+                {
+                    "name": "owner_drivers_license",
+                    "type": "string"
+                },
+                {
+                    "name": "business_phone_number",
+                    "type": "string"
+                },
+                {
+                    "name": "owner_phone_number",
+                    "type": "string"
+                },
+                {
+                    "name": "email",
+                    "type": "string"
+                },
+                {
+                    "name": "address_line1",
+                    "type": "string"
+                },
+                {
+                    "name": "city",
+                    "type": "string"
+                },
+                {
+                    "name": "state",
+                    "type": "string"
+                },
+                {
+                    "name": "zip_code",
+                    "type": "string"
+                },
+                {
+                    "name": "country",
+                    "type": "string"
+                },
+                {
+                    "name": "website",
+                    "type": "string"
+                }
+            ],
+            "indexes": [
+                {
+                    "name": "idx_merchant_fraud_embedding",
+                    "type": "ivfflat",
+                    "column": "embedding",
+                    "lists": 100
+                },
+                {
+                    "name": "idx_merchant_fraud_merchant_id",
+                    "type": "btree",
+                    "column": "merchant_id"
+                }
+            ]
+        }
+    },
+    "extensions": [
+        "vector"
+    ]
+} 

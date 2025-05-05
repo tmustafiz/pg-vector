@@ -88,6 +88,7 @@ def generate_test_data(num_records: int, fraud_ratio: float = 0.1) -> List[Dict[
             fraud_reason = None
         
         record = {
+            'merchant_id': str(uuid.uuid4()),
             'owner_ssn': ssn,
             'business_fed_tax_id': tax_id,
             'owner_drivers_license': generate_drivers_license(),

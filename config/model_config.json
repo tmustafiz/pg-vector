@@ -1,0 +1,96 @@
+{
+  "name": "merchant_fraud",
+  "fields": [
+    {
+      "name": "owner_ssn",
+      "type": "string",
+      "required": true,
+      "validation_rules": {
+        "pattern": "^\\d{3}-\\d{2}-\\d{4}$"
+      }
+    },
+    {
+      "name": "business_fed_tax_id",
+      "type": "string",
+      "required": true,
+      "validation_rules": {
+        "pattern": "^\\d{2}-\\d{7}$"
+      }
+    },
+    {
+      "name": "owner_drivers_license",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "business_phone_number",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "owner_phone_number",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "address_line1",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "state",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "zip_code",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "country",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "website",
+      "type": "string",
+      "required": false
+    }
+  ],
+  "feature_groups": [
+    {
+      "name": "identity",
+      "description": "Identity verification fields",
+      "fields": ["owner_ssn", "business_fed_tax_id", "owner_drivers_license"],
+      "weight": 1.5
+    },
+    {
+      "name": "contact",
+      "description": "Contact information fields",
+      "fields": ["business_phone_number", "owner_phone_number", "email"],
+      "weight": 1.0
+    },
+    {
+      "name": "location",
+      "description": "Location information fields",
+      "fields": ["address_line1", "city", "state", "zip_code", "country"],
+      "weight": 1.0
+    }
+  ],
+  "embedding_dim": 384,
+  "similarity_thresholds": {
+    "decline": 0.8,
+    "review": 0.6
+  }
+} 

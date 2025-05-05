@@ -21,8 +21,8 @@ class Database:
         self.engine = create_engine(db_url)
         self.Session = sessionmaker(bind=self.engine)
 
-    def store_application(self, merchant_id: str, application_data: dict) -> int:
-        """Store a merchant application and return its ID"""
+    def store_application(self, merchant_id: str, application_data: dict):
+        """Store a merchant application"""
         session = self.Session()
         try:
             # Create application instance
@@ -34,7 +34,6 @@ class Database:
             # Add to session and commit
             session.add(application)
             session.commit()
-            return application.id
             
         except Exception as e:
             session.rollback()
@@ -42,13 +41,13 @@ class Database:
         finally:
             session.close()
 
-    def store_embedding(self, application_id: int, embedding: np.ndarray, 
+    def store_embedding(self, application_id: str, embedding: np.ndarray, 
                        fraud_reason: Optional[str] = None):
         """Store a merchant embedding in the database"""
         session = self.Session()
         try:
             # Update the application with embedding
-            application = session.query(self.sqlalchemy_model).get(application_id)
+            application = session.query(self.sqlalchemy_model).filter_by(merchant_id=application_id).first()
             if application:
                 application.embedding = embedding.tolist()
                 if fraud_reason:

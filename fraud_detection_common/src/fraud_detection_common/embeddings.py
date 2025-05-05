@@ -6,66 +6,82 @@ import hashlib
 from .config_schema import ModelConfig
 
 class EmbeddingGenerator:
-    def __init__(self, config: ModelConfig):
-        self.config = config
+    def __init__(self):
         self.scaler = StandardScaler()
-        self.pca = None  # Will be initialized during fit
-        
-    def _hash_value(self, value: str) -> float:
-        """Convert a string value to a numeric hash"""
-        if not value:
-            return 0.0
-        hash_value = int(hashlib.md5(str(value).encode()).hexdigest()[:8], 16)
-        return float(hash_value) / (2**32)  # Normalize to [0, 1]
-        
-    def _preprocess_field(self, value: Any) -> float:
-        """Preprocess a single field value"""
+        self.feature_names = None
+        self.target_dim = 384  # Target dimension for pgvector
+        self.pca = None  # Initialize PCA later when we know the number of features
+
+    def _hash_value(self, value: Any) -> int:
+        """Hash a value to an integer."""
         if value is None:
-            return 0.0
-        return self._hash_value(str(value))
-        
-    def _prepare_features(self, data: Dict[str, Any]) -> np.ndarray:
-        """Prepare features for embedding generation"""
+            return 0
+        return int(hashlib.md5(str(value).encode()).hexdigest(), 16) % 1000
+
+    def _preprocess_field(self, value: Any) -> float:
+        """Preprocess a field value."""
+        if isinstance(value, (int, float)):
+            return float(value)
+        elif isinstance(value, bool):
+            return 1.0 if value else 0.0
+        elif isinstance(value, str):
+            return self._hash_value(value)
+        return 0.0
+
+    def _prepare_features(self, data: List[Dict[str, Any]]) -> np.ndarray:
+        """Prepare features from the data."""
+        if not data:
+            return np.array([])
+
+        # Get all unique field names
+        field_names = set()
+        for item in data:
+            field_names.update(item.keys())
+        self.feature_names = sorted(field_names)
+
+        # Create feature matrix
         features = []
-        
-        # Process each feature group
-        for group in self.config.feature_groups:
-            group_features = []
-            for field_name in group.fields:
-                value = data.get(field_name)
-                processed_value = self._preprocess_field(value)
-                group_features.append(processed_value)
-            
-            # Add group features
-            features.extend(group_features)
-        
-        return np.array(features).reshape(1, -1)
-    
-    def fit(self, data: List[Dict[str, Any]]):
-        """Fit the embedding generator on training data"""
-        # Prepare features for all training samples
-        features = np.vstack([self._prepare_features(d) for d in data])
-        
-        # Initialize PCA with appropriate dimensions
-        n_components = min(features.shape[1], 32)  # Use smaller of feature count or 32
-        self.pca = PCA(n_components=n_components)
-        
-        # Fit scaler and PCA
-        scaled_features = self.scaler.fit_transform(features)
-        self.pca.fit(scaled_features)
-        
-    def generate_embedding(self, data: Dict[str, Any]) -> np.ndarray:
-        """Generate embedding for merchant application data"""
-        if self.pca is None:
-            raise ValueError("EmbeddingGenerator must be fit before generating embeddings")
-            
-        # Prepare features
+        for item in data:
+            row = [self._preprocess_field(item.get(field, None)) for field in self.feature_names]
+            features.append(row)
+
+        return np.array(features)
+
+    def fit(self, data: List[Dict[str, Any]]) -> None:
+        """Fit the embedding generator on the data."""
         features = self._prepare_features(data)
-        
-        # Scale features
-        scaled_features = self.scaler.transform(features)
-        
-        # Apply PCA to get embedding
-        embedding = self.pca.transform(scaled_features)[0]
-        
-        return embedding.astype(np.float32)  # Ensure float32 for pgvector 
+        if len(features) > 0:
+            # Scale the features
+            features = self.scaler.fit_transform(features)
+            
+            # Initialize PCA with appropriate number of components
+            n_features = features.shape[1]
+            n_components = min(n_features, 100)  # Use at most 100 components
+            self.pca = PCA(n_components=n_components)
+            self.pca.fit(features)
+
+    def generate_embedding(self, data: Dict[str, Any]) -> np.ndarray:
+        """Generate an embedding for a single data point."""
+        if self.feature_names is None:
+            raise ValueError("EmbeddingGenerator must be fitted before generating embeddings")
+
+        # Prepare features
+        features = np.array([self._preprocess_field(data.get(field, None)) for field in self.feature_names])
+        if len(features) > 0:
+            # Scale the features
+            features = self.scaler.transform(features.reshape(1, -1))[0]
+            
+            if self.pca is not None:
+                # Apply PCA
+                features = self.pca.transform(features.reshape(1, -1))[0]
+
+        # Pad to target dimension
+        if len(features) < self.target_dim:
+            # Pad with zeros
+            padding = np.zeros(self.target_dim - len(features))
+            embedding = np.concatenate([features, padding])
+        else:
+            # Truncate to target dimension
+            embedding = features[:self.target_dim]
+
+        return embedding.astype(np.float32) 
