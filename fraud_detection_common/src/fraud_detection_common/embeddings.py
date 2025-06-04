@@ -1,87 +1,77 @@
-from typing import Dict, Any, List
+import json
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+import pandas as pd
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
 from sklearn.decomposition import PCA
-import hashlib
-from .config_schema import ModelConfig
 
 class EmbeddingGenerator:
-    def __init__(self):
-        self.scaler = StandardScaler()
-        self.feature_names = None
-        self.target_dim = 384  # Target dimension for pgvector
-        self.pca = None  # Initialize PCA later when we know the number of features
+    def __init__(self, config):
+        self.config = config
+        self.embedding_dim = config.get("embedding_dim", 128)
+        self.group_pipelines = {}
+        self.group_weights = {}
+        self.pca = None
+        self._build_group_pipelines()
 
-    def _hash_value(self, value: Any) -> int:
-        """Hash a value to an integer."""
-        if value is None:
-            return 0
-        return int(hashlib.md5(str(value).encode()).hexdigest(), 16) % 1000
+    def _build_group_pipelines(self):
+        # Map field configs by name for quick lookup
+        field_configs = {f["name"]: f for f in self.config["fields"]}
+        for group in self.config["feature_groups"]:
+            transformers = []
+            for fname in group["fields"]:
+                fconfig = field_configs[fname]
+                ttype = fconfig.get("transformer")
+                transformers.append(self._make_transformer(fname, ttype))
+            group_transformer = ColumnTransformer(transformers, remainder='drop', sparse_threshold=0.3)
+            pipeline = Pipeline([("transform", group_transformer)])
+            self.group_pipelines[group["name"]] = pipeline
+            self.group_weights[group["name"]] = group.get("weight", 1.0)
 
-    def _preprocess_field(self, value: Any) -> float:
-        """Preprocess a field value."""
-        if isinstance(value, (int, float)):
-            return float(value)
-        elif isinstance(value, bool):
-            return 1.0 if value else 0.0
-        elif isinstance(value, str):
-            return self._hash_value(value)
-        return 0.0
-
-    def _prepare_features(self, data: List[Dict[str, Any]]) -> np.ndarray:
-        """Prepare features from the data."""
-        if not data:
-            return np.array([])
-
-        # Get all unique field names
-        field_names = set()
-        for item in data:
-            field_names.update(item.keys())
-        self.feature_names = sorted(field_names)
-
-        # Create feature matrix
-        features = []
-        for item in data:
-            row = [self._preprocess_field(item.get(field, None)) for field in self.feature_names]
-            features.append(row)
-
-        return np.array(features)
-
-    def fit(self, data: List[Dict[str, Any]]) -> None:
-        """Fit the embedding generator on the data."""
-        features = self._prepare_features(data)
-        if len(features) > 0:
-            # Scale the features
-            features = self.scaler.fit_transform(features)
-            
-            # Initialize PCA with appropriate number of components
-            n_features = features.shape[1]
-            n_components = min(n_features, 100)  # Use at most 100 components
-            self.pca = PCA(n_components=n_components)
-            self.pca.fit(features)
-
-    def generate_embedding(self, data: Dict[str, Any]) -> np.ndarray:
-        """Generate an embedding for a single data point."""
-        if self.feature_names is None:
-            raise ValueError("EmbeddingGenerator must be fitted before generating embeddings")
-
-        # Prepare features
-        features = np.array([self._preprocess_field(data.get(field, None)) for field in self.feature_names])
-        if len(features) > 0:
-            # Scale the features
-            features = self.scaler.transform(features.reshape(1, -1))[0]
-            
-            if self.pca is not None:
-                # Apply PCA
-                features = self.pca.transform(features.reshape(1, -1))[0]
-
-        # Pad to target dimension
-        if len(features) < self.target_dim:
-            # Pad with zeros
-            padding = np.zeros(self.target_dim - len(features))
-            embedding = np.concatenate([features, padding])
+    def _make_transformer(self, fname, ttype):
+        # Choose transformer by type (as specified in config)
+        if ttype == "onehot":
+            return (fname, OneHotEncoder(sparse=False, handle_unknown='ignore'), [fname])
+        elif ttype == "hashing":
+            return (fname, HashingVectorizer(analyzer='char', ngram_range=(2, 4), n_features=8), fname)
+        elif ttype == "tfidf":
+            return (fname, TfidfVectorizer(analyzer='char', ngram_range=(2, 4), max_features=16), fname)
+        elif ttype == "scaler":
+            return (fname, StandardScaler(), [fname])
         else:
-            # Truncate to target dimension
-            embedding = features[:self.target_dim]
+            return (fname, TfidfVectorizer(analyzer='char', ngram_range=(2, 4), max_features=8), fname)
 
-        return embedding.astype(np.float32) 
+    def fit(self, data):
+        df = pd.DataFrame(data)
+        for group_name, pipeline in self.group_pipelines.items():
+            pipeline.fit(df)
+        all_embeds = np.array([self._raw_embedding(row) for row in data])
+        if all_embeds.shape[1] > self.embedding_dim:
+            self.pca = PCA(n_components=self.embedding_dim)
+            self.pca.fit(all_embeds)
+
+    def transform(self, row):
+        raw_emb = self._raw_embedding(row)
+        if self.pca:
+            return self.pca.transform([raw_emb])[0]
+        # Pad if too short, trim if too long
+        if len(raw_emb) < self.embedding_dim:
+            return np.pad(raw_emb, (0, self.embedding_dim - len(raw_emb)))
+        elif len(raw_emb) > self.embedding_dim:
+            return raw_emb[:self.embedding_dim]
+        else:
+            return raw_emb
+
+    def _raw_embedding(self, row):
+        df_row = pd.DataFrame([row])
+        group_vecs = []
+        for group_name, pipeline in self.group_pipelines.items():
+            vec = pipeline.transform(df_row)
+            if hasattr(vec, "toarray"):
+                vec = vec.toarray()
+            vec = np.asarray(vec).flatten()
+            weighted_vec = vec * self.group_weights[group_name]
+            group_vecs.append(weighted_vec)
+        return np.concatenate(group_vecs).astype(np.float32)
